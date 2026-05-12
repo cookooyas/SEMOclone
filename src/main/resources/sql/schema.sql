@@ -25,3 +25,19 @@ CREATE TABLE collected_log (
                                collect_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                FOREIGN KEY (db_id) REFERENCES db_config(id)
 );
+
+CREATE TABLE monitoring_logs (
+                                 id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                 db_config_id BIGINT NOT NULL,           -- 어느 DB의 로그인지 (FK)
+                                 total_sessions INT DEFAULT 0,          -- 전체 세션 수
+                                 active_sessions INT DEFAULT 0,         -- 액티브 세션 수
+                                 lock_count INT DEFAULT 0,              -- 락 발생 수
+                                 recorded_at DATETIME(6) NOT NULL,      -- 수집 시각
+
+    -- 외래키 제약 조건
+                                 CONSTRAINT fk_logs_db_config FOREIGN KEY (db_config_id)
+                                     REFERENCES db_config (id) ON DELETE CASCADE
+);
+
+-- 성능을 위한 인덱스 (매우 중요!)
+CREATE INDEX idx_logs_db_time ON monitoring_logs (db_config_id, recorded_at);

@@ -28,6 +28,17 @@
         @keyframes blink {
             50% { opacity: 0.5; }
         }
+
+        .alias-link {
+            color: #333;
+            text-decoration: none;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .alias-link:hover {
+            color: #007bff;
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -53,7 +64,10 @@
         <tbody>
         <tr th:each="db : ${dbList}" th:id="'row-' + ${db.id}">
             <td style="text-align: left;">
-                <strong th:text="${db.alias}">운영DB</strong><br>
+                <a th:href="@{/dashboard/chart/{id}(id=${db.id})}" class="alias-link">
+                    <strong th:text="${db.alias}">운영DB</strong>
+                </a>
+                <br>
                 <small th:text="${db.host}" style="color: #888;">127.0.0.1</small>
             </td>
 

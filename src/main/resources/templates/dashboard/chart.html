@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>실시간 모니터링 - [[${db.alias}]]</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .container { width: 80%; margin: 50px auto; text-align: center; }
+        .info-card { background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #dee2e6; }
+        .chart-container { position: relative; height: 400px; width: 100%; }
+        .btn-back { display: inline-block; margin-top: 20px; padding: 10px 20px; background: #6c757d; color: white; text-decoration: none; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="info-card">
+        <h2 th:text="${db.alias} + ' 실시간 세션 추이'">DB Alias 실시간 세션 추이</h2>
+        <p>연결 정보: <span th:text="${db.host} + ':' + ${db.port}">127.0.0.1:1521</span></p>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="sessionChart"></canvas>
+    </div>
+
+    <a href="/dashboard" class="btn-back">목록으로 돌아가기</a>
+</div>
+
+<script th:inline="javascript">
+    const dbId = [[${db.id}]]; // Thymeleaf를 통해 현재 DB ID 주입
+    const ctx = document.getElementById('sessionChart').getContext('2d');
+
+    // 1. 차트 초기 설정
+    const sessionChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [], // 시간축
+            datasets: [
+                {
+                    label: 'Total Sessions',
+                    data: [],
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3
+                },
+                {
+                    label: 'Active Sessions',
+                    data: [],
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { title: { display: true, text: '수집 시각' } },
+                y: { beginAtZero: true, title: { display: true, text: '세션 수' } }
+            },
+            plugins: {
+                legend: { position: 'top' }
+            }
+        }
+    });
+
+    // 2. API를 통해 데이터 가져오기 (Service의 getHistoricalData 호출)
+    function updateChart() {
+        fetch(`/api/monitoring/history/${dbId}`)
+            .then(response => response.json())
+            .then(data => {
+                // 시간축 데이터 가공 (예: 14:30:05)
+                const labels = data.map(log => {
+                    const date = new Date(log.recordedAt);
+                    return date.getHours().toString().padStart(2, '0') + ':' +
+                        date.getMinutes().toString().padStart(2, '0') + ':' +
+                        date.getSeconds().toString().padStart(2, '0');
+                });
+
+                const totalData = data.map(log => log.totalSessions);
+                const activeData = data.map(log => log.activeSessions);
+
+                // 차트 데이터 업데이트
+                sessionChart.data.labels = labels;
+                sessionChart.data.datasets[0].data = totalData;
+                sessionChart.data.datasets[1].data = activeData;
+
+                sessionChart.update('none'); // 애니메이션 없이 부드럽게 업데이트
+            })
+            .catch(error => console.error('Error fetching data:', error));
+    }
+
+    // 3. 5초마다 데이터 갱신
+    updateChart(); // 초기 로드
+    setInterval(updateChart, 5000);
+</script>
+
+</body>
+</html>

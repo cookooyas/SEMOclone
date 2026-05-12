@@ -1,6 +1,9 @@
 package com.clone.semo.domain.monitoring.service;
 
+import com.clone.semo.domain.monitoring.dto.MonitoringLogDto;
 import com.clone.semo.domain.monitoring.dto.SessionStatusDto;
+import com.clone.semo.domain.monitoring.entity.MonitoringLog;
+import com.clone.semo.domain.monitoring.repository.MonitoringLogRepository;
 import com.clone.semo.domain.targetdb.entity.DbConfig;
 import com.clone.semo.domain.targetdb.repository.DbConfigRepository;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +14,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -20,8 +24,25 @@ import java.util.concurrent.Executors;
 @Service
 @RequiredArgsConstructor
 public class MonitoringService {
+    private final MonitoringLogRepository monitoringLogRepository;
     private final DbConfigRepository dbConfigRepository;
     private final Map<Long, SessionStatusDto> statusCache = new ConcurrentHashMap<>();
+
+    @Transactional(readOnly = true)
+    public List<MonitoringLogDto> getHistoricalData(Long dbId) {
+        LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
+
+        return monitoringLogRepository.findByDbConfigIdAndRecordedAtAfterOrderByRecordedAtAsc(dbId, oneHourAgo)
+                .stream()
+                .map(MonitoringLogDto::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public DbConfig findDbConfig(Long id) {
+        return dbConfigRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("해당 DB 설정이 없습니다. id=" + id));
+    }
 
     @Transactional(readOnly = true) // 수집은 조회 위주이므로 readOnly 추천
     public void collectRealtimeSessions() {
@@ -34,6 +55,7 @@ public class MonitoringService {
                     // 상세 정보(Total, Active, Lock)를 포함한 DTO 수집
                     SessionStatusDto status = fetchDetailedStatus(target);
                     statusCache.put(target.getId(), status);
+                    monitoringLogRepository.save(new MonitoringLog(target, status.totalSessions(), status.activeSessions(), status.lockCount()));
                 } catch (Exception e) {
                     // 접속 실패 시 전용 에러 DTO 생성 (0, 0, 0 처리)
                     statusCache.put(target.getId(), SessionStatusDto.ofFail(target.getId()));
@@ -50,13 +72,13 @@ public class MonitoringService {
 
         // 2. 통합 쿼리 (Total, Active, Lock)
         String sql = """
-            SELECT 
-                COUNT(*) as total_cnt,
-                COUNT(DECODE(STATUS, 'ACTIVE', 1)) as active_cnt,
-                COUNT(DECODE(BLOCKING_SESSION, NULL, NULL, 1)) as lock_cnt
-            FROM V$SESSION 
-            WHERE TYPE != 'BACKGROUND'
-        """;
+                    SELECT 
+                        COUNT(*) as total_cnt,
+                        COUNT(DECODE(STATUS, 'ACTIVE', 1)) as active_cnt,
+                        COUNT(DECODE(BLOCKING_SESSION, NULL, NULL, 1)) as lock_cnt
+                    FROM V$SESSION 
+                    WHERE TYPE != 'BACKGROUND'
+                """;
 
         try (Connection conn = DriverManager.getConnection(url, config.getUsername(), config.getPassword());
              PreparedStatement pstmt = conn.prepareStatement(sql);

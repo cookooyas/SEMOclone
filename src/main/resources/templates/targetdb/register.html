@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Target DB 등록</title>
+    <style>
+        body { font-family: sans-serif; padding: 50px; line-height: 1.6; }
+        .form-container { max-width: 400px; margin: 0 auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px; }
+        .form-group { margin-bottom: 15px; text-align: left; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        .btn-group { margin-top: 20px; display: flex; gap: 10px; }
+        .btn-submit { background-color: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; flex: 1; }
+        .btn-cancel { background-color: #6c757d; color: white; text-decoration: none; padding: 10px 20px; border-radius: 4px; text-align: center; flex: 1; }
+        .btn-submit:hover { background-color: #218838; }
+        .btn-cancel:hover { background-color: #5a6268; }
+    </style>
+</head>
+<body>
+
+<div class="form-container">
+    <h2>새로운 DB 등록</h2>
+    <form th:action="@{/target-db/register}" th:object="${registerForm}" method="post">
+        <div class="form-group">
+            <label>DB 별칭 (Alias)</label>
+            <input type="text" th:field="*{alias}" placeholder="예: 운영-메인-DB" required>
+        </div>
+        <div class="form-group">
+            <label>Host (IP)</label>
+            <input type="text" th:field="*{host}" placeholder="127.0.0.1" required>
+        </div>
+        <div class="form-group">
+            <label>Port</label>
+            <input type="number" th:field="*{port}" required>
+        </div>
+        <div class="form-group">
+            <label>SID / Service Name</label>
+            <input type="text" th:field="*{sid}" placeholder="ORCL">
+        </div>
+        <div class="form-group">
+            <label>Username</label>
+            <input type="text" th:field="*{username}" required>
+        </div>
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" th:field="*{password}" required>
+        </div>
+
+        <div class="btn-group">
+            <button type="submit" class="btn-submit">등록</button>
+            <a th:href="@{/dashboard}" class="btn-cancel">취소</a>
+        </div>
+    </form>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>SEMO Monitor</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding-top: 50px; background-color: #f4f7f6; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+
+        /* 테이블 공통 스타일 */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
+        th { background-color: #f8f9fa; border-bottom: 2px solid #dee2e6; padding: 12px; font-size: 0.9em; }
+        td { padding: 12px; border-bottom: 1px solid #eee; vertical-align: middle; }
+
+        /* 상태별 텍스트 및 배지 */
+        .status-badge { display: inline-block; padding: 3px 10px; border-radius: 15px; font-size: 0.8em; font-weight: bold; border: 1px solid #ccc; background-color: #fff; }
+        .count-value { font-weight: bold; font-family: 'Courier New', Courier, monospace; }
+        .lock-danger { color: #dc3545; font-weight: bold; animation: blink 1.5s infinite; }
+
+        /* 버튼 스타일 */
+        .btn-register { display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; margin-bottom: 15px;}
+        .btn-delete { background-color: #6c757d; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8em; }
+        .btn-delete:hover { background-color: #dc3545; }
+
+        /* 장애 발생 시 행 하이라이트 */
+        .row-critical { background-color: #fff5f5 !important; }
+
+        @keyframes blink {
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>SEMO : DB Real-time Monitor</h1>
+
+    <div style="text-align: right;">
+        <a th:href="@{/target-db/register}" class="btn-register">+ 새로운 DB 등록</a>
+    </div>
+
+    <table>
+        <thead>
+        <tr>
+            <th style="width: 20%;">별칭(Alias)</th>
+            <th style="width: 25%;">세션 (Total / Active)</th>
+            <th style="width: 15%;">Lock 세션</th>
+            <th style="width: 15%;">접속 상태</th>
+            <th style="width: 15%;">최종 확인</th>
+            <th style="width: 10%;">관리</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="db : ${dbList}" th:id="'row-' + ${db.id}">
+            <td style="text-align: left;">
+                <strong th:text="${db.alias}">운영DB</strong><br>
+                <small th:text="${db.host}" style="color: #888;">127.0.0.1</small>
+            </td>
+
+            <td>
+                <span class="count-value" th:id="'total-' + ${db.id}">-</span> /
+                <span class="count-value" th:id="'active-' + ${db.id}" style="color: #28a745;">-</span>
+            </td>
+
+            <td>
+                <span class="count-value" th:id="'lock-' + ${db.id}">-</span>
+            </td>
+
+            <td>
+                <span th:id="'status-' + ${db.id}" class="status-badge">WAITING</span>
+            </td>
+
+            <td th:id="'time-' + ${db.id}" style="font-size: 0.85em; color: #999;">-</td>
+
+            <td>
+                <form th:action="@{/target-db/delete/{id}(id=${db.id})}" method="post"
+                      onsubmit="return confirm('삭제하시겠습니까?');">
+                    <button type="submit" class="btn-delete">삭제</button>
+                </form>
+            </td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(dbList)}">
+            <td colspan="6" style="padding: 50px; color: #999;">등록된 대상 데이터베이스가 없습니다.</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+<script th:inline="javascript">
+    function updateMonitoringData() {
+        fetch('/api/monitoring/status')
+            .then(response => response.json())
+            .then(data => {
+                data.forEach(item => {
+                    const row = document.getElementById('row-' + item.dbId);
+                    const totalEl = document.getElementById('total-' + item.dbId);
+                    const activeEl = document.getElementById('active-' + item.dbId);
+                    const lockEl = document.getElementById('lock-' + item.dbId);
+                    const statusEl = document.getElementById('status-' + item.dbId);
+                    const timeEl = document.getElementById('time-' + item.dbId);
+
+                    if (!row) return;
+
+                    // 1. 세션 수 업데이트
+                    if (totalEl) totalEl.innerText = item.totalSessions;
+                    if (activeEl) activeEl.innerText = item.activeSessions;
+
+                    // 2. Lock 상태 핸들링 (Lock 발생 시 강조)
+                    if (lockEl) {
+                        lockEl.innerText = item.lockCount;
+                        if (item.lockCount > 0) {
+                            lockEl.classList.add('lock-danger');
+                            row.classList.add('row-critical'); // 행 전체 배경색 변경
+                        } else {
+                            lockEl.classList.remove('lock-danger');
+                            row.classList.remove('row-critical');
+                        }
+                    }
+
+                    // 3. 상태 배지 디자인 변경
+                    if (statusEl) {
+                        statusEl.innerText = item.isAlive ? 'ONLINE' : 'OFFLINE';
+                        statusEl.style.color = item.isAlive ? '#007bff' : '#dc3545';
+                        statusEl.style.borderColor = item.isAlive ? '#007bff' : '#dc3545';
+                    }
+
+                    // 4. 시간
+                    if (timeEl) timeEl.innerText = item.lastUpdatedAt;
+                });
+            })
+            .catch(error => console.error('Data Fetch Error:', error));
+    }
+
+    // 초기 실행 및 5초 간격 갱신
+    updateMonitoringData();
+    setInterval(updateMonitoringData, 5000);
+</script>
+
+</body>
+</html>

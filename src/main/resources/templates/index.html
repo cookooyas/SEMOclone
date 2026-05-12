@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>SEMO Monitor</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding-top: 50px; }
+        .status-badge { color: green; font-weight: bold; border: 1px solid green; padding: 5px; }
+    </style>
+</head>
+<body>
+<h1>SEMO : DB Monitoring</h1>
+
+<p th:text="${message}">기본 메시지 (서버 연결 실패 시 보임)</p>
+
+<div>
+    현재 상태: <span class="status-badge" th:text="${status}">대기 중</span>
+</div>
+
+<hr>
+<p>본문본문본문본문</p>
+</body>
+</html>

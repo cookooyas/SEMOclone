@@ -65,7 +65,7 @@ public class MonitoringService {
     }
 
     private SessionStatusDto fetchDetailedStatus(DbConfig config) throws Exception {
-        String url = String.format("jdbc:oracle:thin:@%s:%d:%s", config.getHost(), config.getPort(), config.getSid());
+        String url = String.format("jdbc:oracle:thin:@%s:%d/%s", config.getHost(), config.getPort(), config.getSid());
 
         // 1. 드라이버 레벨의 타임아웃 설정 (3,000개 수집 시 필수)
         DriverManager.setLoginTimeout(3);
